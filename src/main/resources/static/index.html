@@ -1,0 +1,414 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume ATS Checker</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f5fa;
+            color: #222;
+        }
+
+        header {
+            background: #172554;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #172554;
+        }
+
+        label {
+            display: block;
+            margin-top: 22px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input[type="file"], textarea {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ccd2df;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 14px;
+            border: none;
+            border-radius: 7px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #result {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+
+        .score {
+            font-size: 38px;
+            font-weight: bold;
+            color: #2563eb;
+            margin: 15px 0;
+        }
+
+        .keyword {
+            display: inline-block;
+            padding: 7px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .matched {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .missing {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        #status {
+            margin-top: 15px;
+            color: #555;
+        }
+
+        footer {
+            text-align: center;
+            color: #666;
+            margin: 25px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Resume ATS Score Checker</h1>
+    <p>Analyze your resume against a job description</p>
+</header>
+
+<div class="container">
+
+    <h2>Check Your Resume</h2>
+
+    <p>Upload your resume and enter the job description
+       to calculate your ATS match score.</p>
+
+    <form id="uploadForm">
+
+        <label for="file">Upload Resume (PDF)</label>
+
+        <input type="file"
+               id="file"
+               name="file"
+               accept=".pdf"
+               required>
+
+        <label for="jobDescription">Paste Job Description</label>
+
+        <textarea
+            id="jobDescription"
+            name="jobDescription"
+            rows="9"
+            placeholder="Paste the job description here..."
+            required></textarea>
+
+        <button type="submit" id="submitButton">
+            Check ATS Score
+        </button>
+
+    </form>
+
+    <p id="status"></p>
+
+    <div id="result">
+
+        <h2>ATS Analysis Result</h2>
+
+        <p>Your ATS Match Score</p>
+        <div class="score" id="score"></div>
+
+        <h3>Matched Keywords</h3>
+        <div id="matched"></div>
+
+        <h3>Missing Keywords</h3>
+        <div id="missing"></div>
+
+        <h3>Resume Improvement Suggestions</h3>
+
+<div id="suggestions">
+    <ul>
+        <li>Include relevant missing skills from the job description.</li>
+        <li>Add practical project experience related to the required skills.</li>
+        <li>Use measurable achievements wherever possible.</li>
+        <li>Customize your resume for each job application.</li>
+    </ul>
+</div>
+
+    </div>
+
+</div>
+<div class="container">
+
+    <h2>Resume Analysis History</h2>
+
+    <button type="button" onclick="loadHistory()">
+    View Analysis History
+</button>
+
+   
+
+    <div style="overflow-x:auto;">
+        <table border="1" width="100%" cellpadding="10"
+               cellspacing="0" style="margin-top:20px; border-collapse:collapse;">
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Resume Name</th>
+                    <th>ATS Score</th>
+                    <th>Analysis Date</th>
+                </tr>
+            </thead>
+
+            <tbody id="historyTable">
+                <tr>
+                    <td colspan="4">Click View Analysis History</td>
+                </tr>
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+
+<footer>
+    Resume ATS Checker | Java Full Stack Project
+</footer>
+
+<script>
+
+    const form = document.getElementById("uploadForm");
+
+    form.addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+        const file = document.getElementById("file").files[0];
+        const jobDescription =
+            document.getElementById("jobDescription").value;
+
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+        const button = document.getElementById("submitButton");
+
+        if (!file) {
+            status.textContent = "Please select a PDF resume.";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("jobDescription", jobDescription);
+
+        status.textContent = "Analyzing your resume...";
+        result.style.display = "none";
+        button.disabled = true;
+
+        try {
+
+            const response = await fetch("/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.text();
+
+            if (!response.ok) {
+                throw new Error(data || "Upload failed.");
+            }
+
+            if (!data.startsWith("ATS Match Score:")) {
+                throw new Error(data);
+            }
+
+            const lines = data.split("\n");
+
+            const score = lines[0].replace(
+                "ATS Match Score:", ""
+            ).trim();
+
+            const matched = lines[1]
+                .replace("Matched Keywords:", "")
+                .trim();
+
+            const missing = lines[2]
+                .replace("Missing Keywords:", "")
+                .trim();
+
+            document.getElementById("score").textContent = score;
+
+            displayKeywords("matched", matched, "matched");
+            displayKeywords("missing", missing, "missing");
+
+            result.style.display = "block";
+            status.textContent = "Analysis completed successfully!";
+
+        } catch (error) {
+
+            status.textContent = "Error: " + error.message;
+
+        } finally {
+
+            button.disabled = false;
+
+        }
+
+    });
+
+    function displayKeywords(elementId, keywordString, className) {
+
+        const container = document.getElementById(elementId);
+        container.replaceChildren();
+
+        const keywords = keywordString
+            .replace(/^\[/, "")
+            .replace(/\]$/, "")
+            .split(",")
+            .map(word => word.trim())
+            .filter(word => word.length > 0);
+
+        keywords.forEach(function(word) {
+
+            const span = document.createElement("span");
+
+            span.className = "keyword " + className;
+            span.textContent = word;
+
+            container.appendChild(span);
+
+        });
+
+        if (keywords.length === 0) {
+            container.textContent = "No keywords found.";
+        }
+    }
+
+async function loadHistory() {
+
+    const table = document.getElementById("historyTable");
+
+    table.innerHTML =
+        "<tr><td colspan='4'>Loading history...</td></tr>";
+
+    try {
+
+        const response = await fetch("/history");
+
+        if (!response.ok) {
+            throw new Error("Server error: " + response.status);
+        }
+
+        const records = await response.json();
+
+        table.innerHTML = "";
+
+        if (records.length === 0) {
+            table.innerHTML =
+                "<tr><td colspan='4'>No records found</td></tr>";
+            return;
+        }
+
+        records.forEach(function(record) {
+
+            const row = document.createElement("tr");
+
+            const values = [
+                record.id,
+                record.resumeName,
+                Number(record.atsScore).toFixed(2) + "%",
+                record.createdAt
+            ];
+
+            values.forEach(function(value) {
+
+                const cell = document.createElement("td");
+
+                cell.textContent = value;
+
+                row.appendChild(cell);
+
+            });
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error("History Error:", error);
+
+        table.innerHTML =
+            "<tr><td colspan='4'>" +
+            error.message +
+            "</td></tr>";
+
+    }
+}
+
+    
+
+    
+
+
+</script>
+
+</body>
+</html>
+
+
+
+
+
